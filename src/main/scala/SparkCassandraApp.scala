@@ -19,7 +19,7 @@ object SparkCassandraApp {
 
     val sc = new SparkContext(sparkProperties.getProperty("master"), sparkProperties.getProperty("app.name"), conf)
 
-    val rdd = sc.cassandraTable(cassandraProperties.getProperty("keyspace"), cassandraProperties.getProperty("table"))
+    val rdd = sc.cassandraTable(cassandraProperties.getProperty("keyspace"), "tweets_by_user")
 
     rdd.cache()
 
