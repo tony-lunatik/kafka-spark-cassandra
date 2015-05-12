@@ -16,6 +16,7 @@ object SparkCassandraApp {
 
     val conf = new SparkConf(true)
       .set("spark.cassandra.connection.host", cassandraProperties.getProperty("host"))
+      .set("spark.executor.extraClassPath", "/root/lib/*")
 
     val sc = new SparkContext(sparkProperties.getProperty("master"), sparkProperties.getProperty("app.name"), conf)
 
@@ -27,6 +28,8 @@ object SparkCassandraApp {
 
     // Much faster due to caching RDD
     println(rdd.count)
+
+    sc.stop()
 
   }
 
