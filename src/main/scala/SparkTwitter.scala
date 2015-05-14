@@ -1,5 +1,5 @@
 import java.io.FileInputStream
-import java.util.Properties
+import java.util.{Date, Properties}
 
 import com.datastax.driver.core.{BoundStatement, Cluster}
 import com.datastax.driver.core.policies.{DCAwareRoundRobinPolicy, TokenAwarePolicy, DefaultRetryPolicy}
@@ -16,38 +16,42 @@ object SparkTwitter {
 
   def main(args: Array[String]) {
     val sparkProperties = new Properties
-    sparkProperties.load(new FileInputStream("spark.properties"))
+    sparkProperties.load(SparkTwitter.getClass.getResourceAsStream("spark.properties"))
 
     val twitterProperties = new Properties
-    twitterProperties.load(new FileInputStream("twitter.properties"))
+    twitterProperties.load(SparkTwitter.getClass.getResourceAsStream("twitter.properties"))
 
     val cassandraProperties = new Properties
-    cassandraProperties.load(new FileInputStream("cassandra.properties"))
+    cassandraProperties.load(SparkTwitter.getClass.getResourceAsStream("cassandra.properties"))
 
     for (name <- twitterProperties.stringPropertyNames) {
       System.setProperty(name, twitterProperties.getProperty(name))
     }
 
-    val master = sparkProperties.getProperty("master")
+    //val master = sparkProperties.getProperty("master")
     val appName = sparkProperties.getProperty("app.name")
 
-    val sc = new SparkConf().setAppName(appName).setMaster(master)
+    val sc = new SparkConf()
+      .setAppName(appName)
+      //.setMaster(master)
+      //.setMaster("local[2]")
+      //.set("spark.executor.extraClassPath", "/root/lib/*")
 
     val ssc = new StreamingContext(sc, Seconds(1))
 
     val stream = TwitterUtils.createStream(ssc, None)
 
     val tweetsByUser = stream
-      .filter(_.getUser.getLang == "en")
+      //.filter(_.getUser.getLang == "en")
       .map(status => Tweet(status.getId, status.getCreatedAt, status.getUser.getId, status.getUser.getScreenName, null, status.getText))
 
-    /*val tweetsByHashtag = tweetsByUser
+    val tweetsByHashtag = tweetsByUser
       .flatMap(tweet => {
         tweet.text
           .split("\\s")
           .filter(_.startsWith("#"))
           .map(Tweet(tweet.id, tweet.createdAt, tweet.userId, null, _, tweet.text))
-      })*/
+      })
 
     tweetsByUser.foreachRDD(rdd => {
       rdd.foreachPartition(partition => {
@@ -73,7 +77,7 @@ object SparkTwitter {
       })
     })
 
-    /*tweetsByHashtag.foreachRDD(rdd => {
+    tweetsByHashtag.foreachRDD(rdd => {
       rdd.foreachPartition(partition => {
 
         val cluster = Cluster.builder()
@@ -88,14 +92,14 @@ object SparkTwitter {
 
           val stmt = session.prepare("INSERT INTO tweets_by_hashtag (hashtag, created_at, text)  VALUES (?, ?, ?);")
           val boundStmt = new BoundStatement(stmt)
-          session.execute(boundStmt.bind(tweet.userId, tweet.createdAt, tweet.text))
+          session.execute(boundStmt.bind(tweet.hashtag, tweet.createdAt, tweet.text))
 
         })
 
         cluster.close()
 
       })
-    })*/
+    })
 
     /*
 
